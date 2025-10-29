@@ -1,0 +1,60 @@
+import subprocess
+import time
+import logging
+import argparse
+from datetime import datetime
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(message)s',
+    handlers=[logging.FileHandler('mac_change.log'), logging.StreamHandler()]
+)
+
+def change_mac(interface):
+    try:
+        # Disable the network interface
+        subprocess.run(["sudo", "ip", "link", "set", "dev", interface, "down"], check=True)
+        
+        # Change MAC address randomly
+        subprocess.run(["sudo", "macchanger", "-r", interface], check=True)
+        
+        # Enable the network interface
+        subprocess.run(["sudo", "ip", "link", "set", "dev", interface, "up"], check=True)
+        
+        logging.info(f"✅ MAC address changed successfully on {interface}")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"❌ Failed to change MAC address: {e}")
+
+def get_user_input():
+    print("\n=== Auto MAC Changer ===")
+    
+    # Let the user choose the interface
+    while True:
+        interface = input("Choose network interface (eth0/wlan0): ").strip().lower()
+        if interface in ["eth0", "wlan0"]:
+            break
+        print("❌ Invalid choice! Please enter 'eth0' or 'wlan0'.")
+
+    # Let the user set the interval
+    while True:
+        try:
+            interval = int(input("Enter time interval (in seconds, e.g., 300 for 5min): "))
+            if interval > 0:
+                break
+            print("❌ Interval must be > 0!")
+        except ValueError:
+            print("❌ Please enter a valid number!")
+
+    return interface, interval
+
+if __name__ == "__main__":
+    interface, interval = get_user_input()
+    
+    logging.info(f"🔄 Starting MAC rotation on {interface} every {interval} seconds...")
+    try:
+        while True:
+            change_mac(interface)
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        logging.info("🛑 Stopping MAC changer (Ctrl+C pressed).")
